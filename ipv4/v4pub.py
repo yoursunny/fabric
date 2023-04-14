@@ -1,5 +1,4 @@
 import ipaddress
-import json
 import shlex
 import typing as T
 from collections import defaultdict
@@ -9,14 +8,19 @@ from fabrictestbed.slice_editor import Labels
 from fabrictestbed_extensions.fablib.interface import Interface
 from fabrictestbed_extensions.fablib.network_service import (NetworkService,
                                                              ServiceType)
-from fabrictestbed_extensions.fablib.node import Node
 from fabrictestbed_extensions.fablib.slice import Slice
+
+# no need to change anything below
 
 intf_name = 'uplink4'
 net_prefix = 'v4pub-net-'
 
 
 def prepare(slice: Slice, node_names: T.List[str]) -> None:
+    """
+    Add intfs and networks to a slice.
+    This should be called during initial slice creation before slice.submit().
+    """
     intfs_by_site = defaultdict(list)
     for node in slice.get_nodes():
         if node.get_name() not in node_names:
@@ -42,12 +46,16 @@ def modify_network(net: NetworkService) -> None:
 
 
 def modify(slice: Slice) -> None:
+    """
+    Modify slice to request public IPv4 addresses.
+    This should be called on a retrieved slice after initial slice creation.
+    """
     for net in slice.get_networks():
         if net.get_name().startswith(net_prefix):
             modify_network(net)
 
 
-def build_netplan_conf(node: Node, intf: Interface, intf_ip: ipaddress.IPv4Address, net: NetworkService) -> str:
+def build_netplan_conf(intf: Interface, intf_ip: ipaddress.IPv4Address, net: NetworkService) -> str:
     return yaml.dump({
         'network': {
             'version': 2,
@@ -70,14 +78,16 @@ def build_netplan_conf(node: Node, intf: Interface, intf_ip: ipaddress.IPv4Addre
     })
 
 
-def enable_on_network(net: NetworkService) -> None:
+def enable_on_network(net: NetworkService, assoc: T.Dict[str, str]) -> None:
     assert net.fim_network_service.type == ServiceType.FABNetv4Ext
     ips = net.fim_network_service.labels.ipv4
     assert len(ips) >= len(net.get_interfaces())
     execute_threads = {}
     for i, intf in enumerate(net.get_interfaces()):
         node = intf.get_node()
-        netplan_conf = build_netplan_conf(node, intf, ips[i], net)
+        intf_ip = ips[i]
+        assoc[node.get_name()] = intf_ip
+        netplan_conf = build_netplan_conf(intf, intf_ip, net)
         execute_threads[node] = node.execute_thread(f'''
             echo {shlex.quote(netplan_conf)} | sudo tee /etc/netplan/64-v4pub.yaml
             sudo netplan apply
@@ -86,7 +96,15 @@ def enable_on_network(net: NetworkService) -> None:
         thread.result()
 
 
-def enable(slice: Slice) -> None:
+def enable(slice: Slice) -> T.Dict[str, str]:
+    """
+    Enable IPv4 Internet access.
+    This should be called after slice is created and modified.
+    Its result is persisted and can survive node reboots.
+    Returns a dict where each key is a node name and the value is node IP address.
+    """
+    assoc = {}
     for net in slice.get_networks():
         if net.get_name().startswith(net_prefix):
-            enable_on_network(net)
+            enable_on_network(net, assoc)
+    return assoc

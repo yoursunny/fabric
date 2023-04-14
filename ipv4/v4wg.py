@@ -1,5 +1,4 @@
 import ipaddress
-import json
 import shlex
 import typing as T
 from collections import defaultdict
@@ -7,14 +6,24 @@ from collections import defaultdict
 import yaml
 from fabrictestbed_extensions.fablib.interface import Interface
 from fabrictestbed_extensions.fablib.network_service import NetworkService
-from fabrictestbed_extensions.fablib.node import Node
 from fabrictestbed_extensions.fablib.slice import Slice
+
+# WireGuard VPN server dynamic DNS hostname
+server_hostname = 'wg-fabric.example.com'
+# WireGuard VPN server public key, see v4gateway-wg0.conf [Interface] section
+server_pubkey = '0YpMUckXCLDbwlKsMQv2MRyZhOhV4Xvd9VBoaJZEoAA='
+
+# no need to change anything below
 
 intf_name = 'v4wg-intf'
 net_name = 'v4wg-net-'
 
 
-def add_networks(slice: Slice):
+def prepare(slice: Slice):
+    """
+    Add intfs and networks to a slice.
+    This should be called before slice.submit().
+    """
     intfs_by_site = defaultdict(list)
     for node in slice.get_nodes():
         [intf] = node.add_component(
@@ -24,7 +33,11 @@ def add_networks(slice: Slice):
         slice.add_l3network(name=net_name+site, interfaces=intfs, type='IPv4')
 
 
-def build_netplan_conf(node: Node, intf: Interface, intf_ip: ipaddress.IPv4Address, net: NetworkService, server_endpoint: str, server_pubkey: str, client_ip: str, client_pvtkey: str) -> str:
+def build_netplan_conf(intf: Interface, intf_ip: ipaddress.IPv4Address, net: NetworkService, client_ip: str, client_pvtkey: str) -> str:
+    node = intf.get_node()
+    routes = ['0.0.0.0/1', '128.0.0.0/1']
+    if ipaddress.ip_address(node.get_management_ip()).version == 4:
+        routes = []
     return yaml.dump({
         'network': {
             'version': 2,
@@ -46,39 +59,36 @@ def build_netplan_conf(node: Node, intf: Interface, intf_ip: ipaddress.IPv4Addre
                     'key': client_pvtkey,
                     'port': 51820,
                     'peers': [{
-                        'endpoint': server_endpoint,
+                        'endpoint': f'{server_hostname}:51820',
                         'allowed-ips': ['0.0.0.0/0'],
+                        'keepalive': 25,
                         'keys': {
                             'public': server_pubkey
                         }
                     }],
                     'mtu': 1500,
-                    'addresses': [f'{client_ip}/32'],
+                    'addresses': [f'{client_ip}/24'],
                     'routes': [{
-                        'to': '0.0.0.0/1',
+                        'to': dst,
                         'via': '255.255.255.64',
                         'on-link': True
-                    }, {
-                        'to': '128.0.0.0/1',
-                        'via': '255.255.255.64',
-                        'on-link': True
-                    }]
+                    } for dst in routes]
                 }
             }
         }
     })
 
 
-def enable_on_network(net: NetworkService, server_endpoint: str, server_pubkey: str, clients: T.List[T.Tuple[str, str]]) -> None:
+def enable_on_network(net: NetworkService, clients: T.List[T.Tuple[str, str]], assoc: T.Dict[str, str]) -> None:
     ip_alloc = net.get_available_ips()
-    subnet = net.get_subnet()
-    gateway = net.get_gateway()
     execute_threads = {}
     for intf in net.get_interfaces():
         node = intf.get_node()
+        intf_ip = ip_alloc.pop(0)
         client_ip, client_pvtkey = clients.pop()
-        netplan_conf = build_netplan_conf(node, intf, ip_alloc.pop(
-            0), net, server_endpoint, server_pubkey, client_ip, client_pvtkey)
+        assoc[node.get_name()] = client_ip
+        netplan_conf = build_netplan_conf(
+            intf, intf_ip, net, client_ip, client_pvtkey)
         execute_threads[node] = node.execute_thread(f'''
             echo {shlex.quote(netplan_conf)} | sudo tee /etc/netplan/64-v4wg.yaml
             sudo netplan apply
@@ -87,7 +97,14 @@ def enable_on_network(net: NetworkService, server_endpoint: str, server_pubkey: 
         thread.result()
 
 
-def enable(slice: Slice, server_endpoint: str, server_pubkey: str, clients: T.List[T.Tuple[str, str]]) -> None:
+def enable(slice: Slice, clients: T.List[T.Tuple[str, str]]) -> T.Dict[str, str]:
+    """
+    Enable IPv4 Internet access.
+    This should be called after slice.submit().
+    Its result is persisted and can survive node reboots.
+    """
+    assoc = {}
     for net in slice.get_networks():
         if net.get_name().startswith(net_name):
-            enable_on_network(net, server_endpoint, server_pubkey, clients)
+            enable_on_network(net, clients, assoc)
+    return assoc

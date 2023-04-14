@@ -6,83 +6,74 @@ from fabrictestbed_extensions.fablib.fablib import \
     FablibManager as fablib_manager
 
 import v4pub
-import v4wg
 
-fablib = fablib_manager()
-sliceNum = int(time.time())
-sliceName = f'fileserver@{sliceNum}'
-print(sliceName)
+slice_num = int(time.time())
 
-# FABRIC site to allocate slice; its management IP must be IPv6
-SITE = 'WASH'
-# set to True to request dedicated IPv4 address
-WANT_V4PUB = True
-# v4wg server endpoint
-V4WG_SERVER_ENDPOINT = 'wg-fabric.d.yoursunny.dev:51820'
-# v4wg server public key
-V4WG_SERVER_PUBKEY = 'FNih7YL6b5UnwZVPvcOZ7MjAEUmSLuKcIuMf5eWQ6SE='
-# v4wg clients IP and private key
-V4WG_CLIENTS = [
-    ('192.168.164.254', 'GJozi8oJft/ergL+m0K5QPhve1hGp4hxBny55xhlzkI=')]
+# FABRIC site to allocate slice; must pick a site with IPv6 management address
+SITE = 'SALT'
 # remote router on /ndn network, written as IPv4 address (not hostname) and UDP port
 ROUTER_IP, ROUTER_PORT = '128.252.153.194', 6363
+# NDN-DPDK git repository
+NDNDPDK_GIT = 'https://github.com/yoursunny/ndn-dpdk.git'
 # URI for NDNts-CA profile packet, base64-encoded; the CA must accept "nop" challenge
 CA_PROFILE_B64_URI = 'https://gist.githubusercontent.com/yoursunny/54db5b27f9193859b7d1c83f0aeb8d6d/raw/ca-profile.data.base64'
 # URI for list of intermediate certificates of the NDNts-CA certificate
 CA_INTERMEDIATES_URI = 'https://gist.githubusercontent.com/yoursunny/54db5b27f9193859b7d1c83f0aeb8d6d/raw/cert-intermediates.txt'
 # NDN name prefix for the file server
-FS_PREFIX = f'/fileserver.{sliceNum}'
+FS_PREFIX = f'/fileserver.{slice_num}'
 # filesystem path for the file server
 FS_PATH = '/srv/fileserver'
 # segment length served by the file server
 FS_SEGMENTLEN = 6*1024
 
-slice = fablib.new_slice(name=sliceName)
+# no need to change anything below
+
+fablib = fablib_manager()
+slice_name = f'fileserver@{slice_num}'
+print(slice_name)
+
+slice = fablib.new_slice(name=slice_name)
 node = slice.add_node(name='fileserver', site=SITE, cores=12,
                       ram=32, disk=100, image='default_ubuntu_22')
 disk = node.add_component(model='NVME_P4510', name='disk')
-if WANT_V4PUB:
-    v4pub.prepare(slice, [node.get_name()])
-else:
-    v4wg.prepare(slice)
+v4pub.prepare(slice, [node.get_name()])
 slice.submit()
 
-if WANT_V4PUB:
-    slice = fablib.get_slice(name=sliceName)
-    v4pub.modify(slice)
-    slice.submit()
+slice = fablib.get_slice(name=slice_name)
+v4pub.modify(slice)
+slice.submit()
 
-slice = fablib.get_slice(name=sliceName)
+slice = fablib.get_slice(name=slice_name)
 node = slice.get_node(name='fileserver')
 disk = node.get_component('disk')
-print(node.get_ssh_command())
-if WANT_V4PUB:
-    v4pub.enable(slice)
-else:
-    v4wg.enable(slice, V4WG_SERVER_ENDPOINT, V4WG_SERVER_PUBKEY, V4WG_CLIENTS)
+v4pub.enable(slice)
 
+# install NFD from https://nfd-nightly.ndn.today/
 node.execute(f'''
     sudo hostnamectl set-hostname {node.get_name()}
     echo "deb [arch=amd64 trusted=yes] https://nfd-nightly-apt.ndn.today/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/nfd-nightly.list
     sudo apt update
     sudo DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
-    sudo DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends jq libibverbs-dev linux-image-generic ndnsec ndnpeek nfd
+    sudo DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends httpie iperf3 jq libibverbs-dev linux-image-generic ndnpeek ndnsec nfd
+    sudo DEBIAN_FRONTEND=noninteractive apt purge -y nano
     sudo loginctl enable-linger {node.get_username()}
     sudo reboot
 ''')
 slice.wait_ssh(progress=True)
 disk.configure_nvme(mount_point=FS_PATH)
 
-node.execute('''
-    git clone https://github.com/yoursunny/ndn-dpdk.git
+# build and install NDN-DPDK
+node.execute(f'''
+    git clone {NDNDPDK_GIT}
     cd ndn-dpdk
     docs/ndndpdk-depends.sh -y
 
     corepack pnpm install
-    NDNDPDK_MK_RELEASE=1 make
+    env NDNDPDK_MK_RELEASE=1 make
     sudo make install
 ''')
 
+# run NDNts keychain tool to obtain a testbed-compatible certificate
 node.execute(f'''
     sudo systemctl enable --now nfd
     nfdc face create udp4://{ROUTER_IP}:{ROUTER_PORT}
@@ -101,7 +92,7 @@ node.execute(f'''
     export NDNTS_UPLINK=unix:///run/nfd.sock
 
     CAPREFIX=$(ndnts-keychain ndncert03-show-profile --profile ~/keychain/ca-profile.data --json | tee /dev/stderr | jq -r .prefix)
-    ndnsec key-gen $CAPREFIX/$(hostname -s)-{sliceNum} >/dev/null
+    ndnsec key-gen $CAPREFIX/$(hostname -s)-{slice_num} >/dev/null
     KEYNAME=$(ndnsec get-default -k)
     for I in $(seq 60); do
       if ndnts-keychain ndncert03-client --profile ~/keychain/ca-profile.data --ndnsec --key $KEYNAME --challenge nop; then
@@ -112,7 +103,10 @@ node.execute(f'''
     ndnsec export -o ~/keychain/pvt.safebag -P 0 -k $KEYNAME
 
     sudo systemctl disable --now nfd
-    
+''')
+
+# set CPU isolation
+node.execute(f'''
     to_file() {{
         sudo mkdir -p "$(dirname $1)"
         sudo tee "$1"
@@ -179,6 +173,7 @@ nfdregCmd += ' --signer ~/keychain/pvt.safebag --signer-pass 0 '
 nfdregCmd += ' $(find ~/keychain/intermediate-*.ndncert -exec echo --serve-cert {} "" ";")'
 nfdregCmd += f' --origin 65 --register {shlex.quote(FS_PREFIX)} --repeat 20s'
 
+# start NDN-DPDK forwarder, prefix registration service, and fileserver
 node.execute(f'''
     sudo mkdir -p {shlex.quote(FS_PATH)}
     sudo mount /dev/nvme0n1p1 {shlex.quote(FS_PATH)}
@@ -214,7 +209,11 @@ node.execute(f'''
     $CTRL_FW list-fib
 ''')
 
+print(node.get_ssh_command())
 print(f'''
+----------------------------------------------------------------
+NDN-DPDK fileserver is ready on the global NDN testbed.
+List directory or retrieve file from this fileserver:
 ndncatchunks -q {FS_PREFIX}/32=ls | tr '\\0' '\\n'
 ndncatchunks -v {FS_PREFIX}/1G.bin >/dev/null 2>catchunks.log
 ''')

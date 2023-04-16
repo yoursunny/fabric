@@ -7,7 +7,7 @@ This directory contains scripts for running [NDN-DPDK](https://github.com/usnist
 This experiment runs an [NDN-DPDK file server](https://github.com/usnistgov/ndn-dpdk/blob/main/docs/fileserver.md) that connects to the [global NDN testbed](https://named-data.net/ndn-testbed/).
 The script can automatically obtain an NDN certificate that allows prefix registration on the testbed, and then connect to a specified testbed router and register a randomly generated prefix.
 
-Deployment steps:
+Usage steps:
 
 1. Upload `fileserver.py` and [`v4pub.py`](../ipv4) to the same directory on JupyterLab.
 2. Modify parameters in `fileserver.py` (see notes within) as desired.
@@ -26,7 +26,7 @@ This experiment deploys the [NDN-DPDK benchmark webapp](https://github.com/usnis
 Node location and NIC type can be customized.
 [NDN-DPDK status page](https://github.com/usnistgov/ndn-dpdk/tree/main/sample/status) is also installed for inspecting forwarder or traffic generator status.
 
-Deployment steps:
+Usage steps:
 
 1. Deploy a WireGuard VPN server with [`v4gateway.py`](../ipv4).
 2. Upload `benchmark.py` and [`v4wg.py`](../ipv4) to the same directory on JupyterLab.

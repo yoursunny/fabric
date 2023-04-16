@@ -15,7 +15,7 @@ This setup creates a WireGuard VPN server with public IPv4 address and allows ot
 This method is suitable for *light* use of IPv4 Internet access, such as cloning from GitHub that still doesn't support IPv6.
 It can deliver up to 500 Mbps speeds.
 
-Deployment and integration steps:
+Usage steps:
 
 1. Generate a `v4gateway-wg0.conf` file with `v4gateway-wg0.sh` (see notes within).
 2. Create a **v4gateway** slice with `v4gateway.py` script.
@@ -23,15 +23,21 @@ Deployment and integration steps:
 3. Modify `v4wg.py` (see notes within) and copy it next to each experiment.
 4. In each experiment, insert `v4wg.prepare()` and `v4wg.enable()` calls (see example in `demo-v4wg.py`).
 
+It is safe to use this script on nodes that already have IPv4 management address.
+In this case, the node would be able to reach other VPN clients via the VPN server, but its Internet connection still goes over the management interface.
+
 ## v4pub: IPv4 Internet access via FABNetv4Ext on every node
 
 This setup requests a public IPv4 address on each selected node in a slice.
 It is suitable for high-bandwidth IPv4 Internet access, such as communicating with the global NDN testbed.
 FABRIC has a limited quantity of public IPv4 addresses in each site, so that you should not use this method for light usage such as downloading from GitHub.
 
-Deployment and integration steps:
+Usage steps:
 
 1. In each experiment, insert `v4pub.prepare()`, `v4pub.modify()`, and `v4pub.enable()` calls (see example in `demo-v4pub.py`).
 
-Note that this setup would cause your node to be exposed to the Internet.
-You should normally perform some security hardening to prevent network attacks.
+You should not use this script on nodes that already have IPv4 management address.
+Doing so would cause the node to lose management connectivity.
+
+This script will expose the node to the Internet, with the potential of receiving network attacks.
+You should perform security hardening, such as enabling the firewall, as soon as possible.

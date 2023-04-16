@@ -14,7 +14,7 @@ SITE = 'SALT'
 # remote router on /ndn network, written as IPv4 address (not hostname) and UDP port
 ROUTER_IP, ROUTER_PORT = '128.252.153.194', 6363
 # NDN-DPDK git repository
-NDNDPDK_GIT = 'https://github.com/yoursunny/ndn-dpdk.git'
+NDNDPDK_GIT = 'https://github.com/usnistgov/ndn-dpdk.git'
 # URI for NDNts-CA profile packet, base64-encoded; the CA must accept "nop" challenge
 CA_PROFILE_B64_URI = 'https://gist.githubusercontent.com/yoursunny/54db5b27f9193859b7d1c83f0aeb8d6d/raw/ca-profile.data.base64'
 # URI for list of intermediate certificates of the NDNts-CA certificate

@@ -9,7 +9,7 @@ The script can automatically obtain an NDN certificate that allows prefix regist
 
 Usage steps:
 
-1. Upload `fileserver.py` and [`v4pub.py`](../ipv4) to the same directory on JupyterLab.
+1. Upload `fileserver.py`, `ndndpdk_common.py`, and [`v4pub.py`](../ipv4) to the same directory on JupyterLab.
 2. Modify parameters in `fileserver.py` (see notes within) as desired.
 3. Run `fileserver.py`.
 
@@ -29,7 +29,7 @@ Node location and NIC type can be customized.
 Usage steps:
 
 1. Deploy a WireGuard VPN server with [`v4gateway.py`](../ipv4).
-2. Upload `benchmark.py` and [`v4wg.py`](../ipv4) to the same directory on JupyterLab.
+2. Upload `benchmark.py`, `ndndpdk_common.py`, and [`v4wg.py`](../ipv4) to the same directory on JupyterLab.
 3. Modify parameters in `benchmark.py` (see notes within) as desired.
 4. Run `benchmark.py`.
 

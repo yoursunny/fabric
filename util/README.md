@@ -25,8 +25,8 @@ Usage steps:
 1. Upload the script to JupyterLab.
 2. Run `python delete.py SLICE-NAME`.
 
-Most experiment scripts in this repository deploy the slice but do not automatically delete them, as the slice may be providing a service used by other slices or remote nodes.
-When the slice is no longer needed, this script may be used to delete the slice and release FABRIC resources.
+Most experiment scripts in this repository deploy new slices but do not automatically delete them, as the slice may be providing a service used by other slices or remote nodes.
+When a slice is no longer needed, this script may be used to delete the slice and release FABRIC resources.
 
 ## mtu: Test MTU and RTT between Sites
 

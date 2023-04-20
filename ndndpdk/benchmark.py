@@ -17,7 +17,7 @@ NIC_MODEL = 'NIC_ConnectX_6'
 # if False, benchmark only supports pingserver as producer
 WANT_FILESERVER = True
 # NDN-DPDK git repository
-NDNDPDK_GIT = 'https://github.com/usnistgov/ndn-dpdk.git'
+NDNDPDK_GIT = ndndpdk_common.DEFAULT_GIT_REPO
 # 3x WireGuard client IPs and keys
 V4WG_CLIENTS = [
     ('192.168.164.40', 'sDCCYU0r9TwugEDzTMDyfJ1eA+YwAyXf+EN3Hzj7QUo='),

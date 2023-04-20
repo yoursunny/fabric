@@ -6,6 +6,7 @@ from fabrictestbed_extensions.fablib.fablib import \
     FablibManager as fablib_manager
 from fabrictestbed_extensions.fablib.interface import Interface
 
+import ndndpdk_common
 import v4wg
 
 # FABRIC site(s) for forwarder F, trafficgen A, trafficgen B; they may be same or different
@@ -77,14 +78,11 @@ for node in slice.get_nodes():
     print(
         f'{node.get_name()} {ctrl_addrs[node.get_name()]} {node.get_management_ip()}')
     execute_threads[node] = node.execute_thread(f'''
-        sudo hostnamectl set-hostname {node.get_name()}
         echo 'set enable-bracketed-paste off' | sudo tee -a /etc/inputrc
-        sudo apt update
-        sudo DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
-        sudo DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends httpie jq libibverbs-dev linux-image-generic
-        sudo DEBIAN_FRONTEND=noninteractive apt purge -y nano
-        sudo loginctl enable-linger {node.get_username()}
-        sudo reboot
+        sudo hostnamectl set-hostname {shlex.quote(node.get_name())}
+        {ndndpdk_common.apt_install_cmd()}
+        sudo loginctl enable-linger {shlex.quote(node.get_username())}
+        sudo systemctl reboot
     ''')
 for thread in execute_threads.values():
     thread.result()
@@ -95,21 +93,9 @@ slice.post_boot_config()
 execute_threads = {}
 for node in slice.get_nodes():
     execute_threads[node] = node.execute_thread(f'''
-        git clone {NDNDPDK_GIT}
-        cd ndn-dpdk
-        docs/ndndpdk-depends.sh -y
-
-        corepack pnpm install
-        env NDNDPDK_MK_RELEASE=1 make
-        sudo make install
-
-        to_file() {{
-            sudo mkdir -p "$(dirname $1)"
-            sudo tee "$1"
-        }}
-        echo -e '[Manager]\nCPUAffinity=0-3' | to_file /etc/systemd/system.conf.d/cpuset.conf
-        echo -e '[Service]\nCPUAffinity=4-{node.get_cores()-1}' | to_file /etc/systemd/system/ndndpdk-svc@$(systemd-escape {ctrl_addrs[node.get_name()]}:3030).service.d/override.conf
-        sudo reboot
+        {ndndpdk_common.dl_build_cmd(repo=NDNDPDK_GIT)}
+        {ndndpdk_common.cpuset_cmd(node, instances={f'{ctrl_addrs[node.get_name()]}:3030': node.get_cores()-4})}
+        sudo systemctl reboot
     ''')
 for thread in execute_threads.values():
     thread.result()
@@ -132,8 +118,7 @@ for node in slice.get_nodes():
     node.execute(f'''
         echo {node.get_name()}
         sudo mkdir -p /run/ndn
-        while ! sudo dpdk-hugepages.py --setup 20G; do sleep 1; done
-        dpdk-hugepages.py --show
+        {ndndpdk_common.hugepages_cmd(size=20)}
         sudo ndndpdk-ctrl --gqlserver=http://{ctrl_addrs[node.get_name()]}:3030 systemd start
     ''')
 

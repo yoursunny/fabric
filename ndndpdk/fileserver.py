@@ -5,6 +5,7 @@ import time
 from fabrictestbed_extensions.fablib.fablib import \
     FablibManager as fablib_manager
 
+import ndndpdk_common
 import v4pub
 
 slice_num = int(time.time())
@@ -14,7 +15,7 @@ SITE = 'SALT'
 # remote router on /ndn network, written as IPv4 address (not hostname) and UDP port
 ROUTER_IP, ROUTER_PORT = '128.252.153.194', 6363
 # NDN-DPDK git repository
-NDNDPDK_GIT = 'https://github.com/usnistgov/ndn-dpdk.git'
+NDNDPDK_GIT = ndndpdk_common.DEFAULT_GIT_REPO
 # URI for NDNts-CA profile packet, base64-encoded; the CA must accept "nop" challenge
 CA_PROFILE_B64_URI = 'https://gist.githubusercontent.com/yoursunny/54db5b27f9193859b7d1c83f0aeb8d6d/raw/ca-profile.data.base64'
 # URI for list of intermediate certificates of the NDNts-CA certificate
@@ -50,28 +51,18 @@ v4pub.enable(slice)
 
 # install NFD from https://nfd-nightly.ndn.today/
 node.execute(f'''
+    echo 'set enable-bracketed-paste off' | sudo tee -a /etc/inputrc
     sudo hostnamectl set-hostname {node.get_name()}
     echo "deb [arch=amd64 trusted=yes] https://nfd-nightly-apt.ndn.today/ubuntu jammy main" | sudo tee /etc/apt/sources.list.d/nfd-nightly.list
-    sudo apt update
-    sudo DEBIAN_FRONTEND=noninteractive apt full-upgrade -y
-    sudo DEBIAN_FRONTEND=noninteractive apt install -y --no-install-recommends httpie iperf3 jq libibverbs-dev linux-image-generic ndnpeek ndnsec nfd
-    sudo DEBIAN_FRONTEND=noninteractive apt purge -y nano
+    {ndndpdk_common.apt_install_cmd(extra_pkgs=['ndnpeek', 'ndnsec', 'nfd'])}
     sudo loginctl enable-linger {node.get_username()}
-    sudo reboot
+    sudo systemctl reboot
 ''')
 slice.wait_ssh(progress=True)
 disk.configure_nvme(mount_point=FS_PATH)
 
 # build and install NDN-DPDK
-node.execute(f'''
-    git clone {NDNDPDK_GIT}
-    cd ndn-dpdk
-    docs/ndndpdk-depends.sh -y
-
-    corepack pnpm install
-    env NDNDPDK_MK_RELEASE=1 make
-    sudo make install
-''')
+node.execute(ndndpdk_common.dl_build_cmd(repo=NDNDPDK_GIT))
 
 # run NDNts keychain tool to obtain a testbed-compatible certificate
 node.execute(f'''
@@ -80,8 +71,8 @@ node.execute(f'''
     nfdc route add / udp4://{ROUTER_IP}:{ROUTER_PORT}
 
     mkdir -p ~/keychain
-    curl -fsLS {shlex.quote(CA_PROFILE_B64_URI)} | base64 -d > ~/keychain/ca-profile.data
-    I=0; for INTERMEDIATE in $(curl -fsLS {shlex.quote(CA_INTERMEDIATES_URI)}); do
+    http --ignore-stdin GET {shlex.quote(CA_PROFILE_B64_URI)} | base64 -d > ~/keychain/ca-profile.data
+    I=0; for INTERMEDIATE in $(http --ignore-stdin GET {shlex.quote(CA_INTERMEDIATES_URI)}); do
         while ! [[ -s ~/keychain/intermediate-$I.ndncert ]]; do
             ndnpeek -v "$INTERMEDIATE" | base64 > ~/keychain/intermediate-$I.ndncert
         done
@@ -106,16 +97,13 @@ node.execute(f'''
 ''')
 
 # set CPU isolation
-node.execute(f'''
-    to_file() {{
-        sudo mkdir -p "$(dirname $1)"
-        sudo tee "$1"
-    }}
-    echo -e '[Manager]\nCPUAffinity=0-1' | to_file /etc/systemd/system.conf.d/cpuset.conf
-    echo -e '[Service]\nCPUAffinity=2-7' | to_file /etc/systemd/system/ndndpdk-svc@$(systemd-escape 127.0.0.1:3030).service.d/override.conf
-    echo -e '[Service]\nCPUAffinity=8-11' | to_file /etc/systemd/system/ndndpdk-svc@$(systemd-escape 127.0.0.1:3031).service.d/override.conf
-    sudo reboot
-''')
+node.execute(f"""
+    {ndndpdk_common.cpuset_cmd(node, instances={
+        '127.0.0.1:3030': 6,
+        '127.0.0.1:3031': 4,
+    })}
+    sudo systemctl reboot
+""")
 slice.wait_ssh(progress=True)
 
 FW_ACTIVATE = {
@@ -186,8 +174,7 @@ node.execute(f'''
     sudo $CTRL_FW systemd stop || true
     sudo $CTRL_FS systemd stop || true
 
-    sudo dpdk-hugepages.py --clear
-    sudo dpdk-hugepages.py --pagesize 1G --setup 18G
+    {ndndpdk_common.hugepages_cmd(size=18)}
 
     sudo $CTRL_FW systemd start
     echo {shlex.quote(json.dumps(FW_ACTIVATE))} | $CTRL_FW activate-forwarder

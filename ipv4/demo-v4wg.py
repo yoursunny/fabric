@@ -21,7 +21,6 @@ nodeC = slice.add_node(name='NC', site='STAR', cores=1,
 v4wg.prepare(slice)
 slice.submit()
 
-slice = fablib.get_slice(name=slice_name)
 nodeA = slice.get_node(name='NA')
 nodeB = slice.get_node(name='NB')
 nodeC = slice.get_node(name='NC')
@@ -44,7 +43,6 @@ v4wg_clients = [
     ('192.168.164.42', 'UALczs0qEZ/KjfH2fMMIovFrK3/guRXL9GdRB+YVoFE='),
 ]
 
-slice = fablib.get_slice(name=slice_name)
 # Call v4pub.enable() to install WireGuard client to each node and configure its key.
 # Changes are persisted and can survive node reboots.
 assoc = v4wg.enable(slice, v4wg_clients)

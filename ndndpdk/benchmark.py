@@ -55,7 +55,6 @@ v4wg.prepare(slice)
 slice.submit()
 del intfsF, intfsA, intfsB
 
-slice = fablib.get_slice(name=slice_name)
 ctrl_addrs = v4wg.enable(slice, V4WG_CLIENTS)
 nodeF = slice.get_node(name='NF')
 nodeA = slice.get_node(name='NA')

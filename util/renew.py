@@ -20,7 +20,7 @@ for slice_name in SLICE_NAMES:
         slice = fablib.get_slice(name=slice_name)
         end0 = slice.get_lease_end()
         slice.renew(end_date)
-        slice = fablib.get_slice(name=slice_name)
+        slice.update()
         end1 = slice.get_lease_end()
         print(f"{slice_name} RENEW {end0} {end1}")
     except Exception as e:

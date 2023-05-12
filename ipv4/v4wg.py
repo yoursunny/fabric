@@ -97,12 +97,14 @@ def enable_on_network(net: NetworkService, clients: T.List[T.Tuple[str, str]], a
         thread.result()
 
 
-def enable(slice: Slice, clients: T.List[T.Tuple[str, str]]) -> T.Dict[str, str]:
+def enable(slice: Slice, clients: T.List[T.Tuple[str, str]], *, update=True) -> T.Dict[str, str]:
     """
     Enable IPv4 Internet access.
     This should be called after slice.submit().
     Its result is persisted and can survive node reboots.
     """
+    if update:
+        slice.update()
     assoc = {}
     for net in slice.get_networks():
         if net.get_name().startswith(net_name):

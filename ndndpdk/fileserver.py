@@ -40,11 +40,8 @@ disk = node.add_component(model='NVME_P4510', name='disk')
 v4pub.prepare(slice, [node.get_name()])
 slice.submit()
 
-slice = fablib.get_slice(name=slice_name)
 v4pub.modify(slice)
-slice.submit()
 
-slice = fablib.get_slice(name=slice_name)
 node = slice.get_node(name='fileserver')
 disk = node.get_component('disk')
 v4pub.enable(slice)

@@ -4,16 +4,19 @@ import typing as T
 from collections import defaultdict
 
 import yaml
-from fabrictestbed.slice_editor import Labels
 from fabrictestbed_extensions.fablib.interface import Interface
 from fabrictestbed_extensions.fablib.network_service import (NetworkService,
                                                              ServiceType)
 from fabrictestbed_extensions.fablib.slice import Slice
 
+from plugins import Plugins
+
 # no need to change anything below
 
 intf_name = 'uplink4'
 net_prefix = 'v4pub-net-'
+
+Plugins.load()
 
 
 def prepare(slice: Slice, node_names: T.List[str]) -> None:
@@ -36,23 +39,22 @@ def prepare(slice: Slice, node_names: T.List[str]) -> None:
 def modify_network(net: NetworkService) -> None:
     assert net.fim_network_service.type == ServiceType.FABNetv4Ext
     ips = net.get_available_ips(count=len(net.get_interfaces()))
-
-    labels = net.fim_network_service.labels
-    if labels is None:
-        labels = Labels()
-    labels = Labels.update(labels, ipv4=[str(ip) for ip in ips])
-
-    net.fim_network_service.set_properties(labels=labels)
+    net.change_public_ip(ipv4=[str(ip) for ip in ips])
 
 
-def modify(slice: Slice) -> None:
+def modify(slice: Slice, *, update=True, submit=True) -> None:
     """
     Modify slice to request public IPv4 addresses.
-    This should be called on a retrieved slice after initial slice creation.
+    This should be called after initial slice creation.
     """
+    if update:
+        slice.update()
     for net in slice.get_networks():
         if net.get_name().startswith(net_prefix):
             modify_network(net)
+    if submit:
+        slice.submit(wait=True, progress=False, post_boot_config=False)
+        slice.update()
 
 
 def build_netplan_conf(intf: Interface, intf_ip: ipaddress.IPv4Address, net: NetworkService) -> str:
@@ -80,7 +82,7 @@ def build_netplan_conf(intf: Interface, intf_ip: ipaddress.IPv4Address, net: Net
 
 def enable_on_network(net: NetworkService, assoc: T.Dict[str, str]) -> None:
     assert net.fim_network_service.type == ServiceType.FABNetv4Ext
-    ips = net.fim_network_service.labels.ipv4
+    ips = net.get_fim_network_service().labels.ipv4
     assert len(ips) >= len(net.get_interfaces())
     execute_threads = {}
     for i, intf in enumerate(net.get_interfaces()):
@@ -96,13 +98,15 @@ def enable_on_network(net: NetworkService, assoc: T.Dict[str, str]) -> None:
         thread.result()
 
 
-def enable(slice: Slice) -> T.Dict[str, str]:
+def enable(slice: Slice, *, update=True) -> T.Dict[str, str]:
     """
     Enable IPv4 Internet access.
     This should be called after slice is created and modified.
     Its result is persisted and can survive node reboots.
     Returns a dict where each key is a node name and the value is node IP address.
     """
+    if update:
+        slice.update()
     assoc = {}
     for net in slice.get_networks():
         if net.get_name().startswith(net_prefix):

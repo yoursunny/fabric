@@ -20,7 +20,7 @@ Usage steps:
 1. Generate a `v4gateway-wg0.conf` file with `v4gateway-wg0.sh` (see notes within).
 2. Create a **v4gateway** slice with `v4gateway.py` script.
    If this slice is dead for any reason, just re-deploy without changing `v4gateway-wg0.conf`, and service will resume.
-3. Modify `v4wg.py` (see notes within) and copy it next to each experiment.
+3. Modify `v4wg.py` (see notes within) and copy it beside each experiment.
 4. In each experiment, insert `v4wg.prepare()` and `v4wg.enable()` calls (see example in `demo-v4wg.py`).
 
 It is safe to use this script on nodes that already have IPv4 management address.
@@ -34,7 +34,8 @@ FABRIC has a limited quantity of public IPv4 addresses in each site, so that you
 
 Usage steps:
 
-1. In each experiment, insert `v4pub.prepare()`, `v4pub.modify()`, and `v4pub.enable()` calls (see example in `demo-v4pub.py`).
+1. Download [`plugins.py`](https://github.com/fabric-testbed/jupyter-examples/blob/master/fabric_examples/beta_functionality/rel1.4/plugins.py) and place it beside `v4pub.py`.
+2. In each experiment, insert `v4pub.prepare()`, `v4pub.modify()`, and `v4pub.enable()` calls (see example in `demo-v4pub.py`).
 
 You should not use this script on nodes that already have IPv4 management address.
 Doing so would cause the node to lose management connectivity.

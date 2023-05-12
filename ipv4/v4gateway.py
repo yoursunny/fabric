@@ -12,6 +12,8 @@ SITE = 'STAR'
 
 # no need to change anything below
 
+wg0_conf_template = 'v4gateway-wg0.conf'
+
 fablib = fablib_manager()
 slice_name = f'v4gateway@{int(time.time())}'
 print(slice_name)
@@ -25,11 +27,7 @@ slice.add_l3network(name='LAN', interfaces=[intf_lan], type='IPv4')
 v4pub.prepare(slice, ['gateway'])
 slice.submit()
 
-slice = fablib.get_slice(name=slice_name)
 v4pub.modify(slice)
-slice.submit()
-
-slice = fablib.get_slice(name=slice_name)
 ip_wan = v4pub.enable(slice)['gateway']
 
 node = slice.get_node(name='gateway')
@@ -54,7 +52,7 @@ netplan_conf = yaml.dump({
         }
     }
 })
-node.upload_file(local_file_path='v4gateway-wg0.conf',
+node.upload_file(local_file_path=wg0_conf_template,
                  remote_file_path='wg0.conf')
 
 node.execute(f'''

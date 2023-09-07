@@ -2,6 +2,7 @@
 
 This directory contains scripts for obtaining IPv4 Internet access without relying on the management network interface.
 It makes use of [FABNetv4Ext network service](https://learn.fabric-testbed.net/knowledge-base/network-services-in-fabric/#layer-3-services).
+Unlike [FABRIC's NAT64 solution](https://learn.fabric-testbed.net/forums/topic/fabric-nat64-solution-obviates-the-need-for-custom-dns-in-ipv6-sites/), you will be able to access IPv4 addresses, in addition to IPv4-only hostnames.
 
 ## v4wg: IPv4 Internet access via WireGuard VPN
 
@@ -26,6 +27,9 @@ Usage steps:
 It is safe to use this script on nodes that already have IPv4 management address.
 In this case, the node would be able to reach other VPN clients via the VPN server, but its Internet connection still goes over the management interface.
 
+This script changes the DNS servers on the VPN clients to Cloudflare and Google public DNS, which disables FABRIC's NAT64 solution.
+Traffic to IPv4-only sites goes over the VPN server, instead of the NAT64 gateway.
+
 ## v4pub: IPv4 Internet access via FABNetv4Ext on every node
 
 This setup requests a public IPv4 address on each selected node in a slice.
@@ -34,8 +38,7 @@ FABRIC has a limited quantity of public IPv4 addresses in each site, so that you
 
 Usage steps:
 
-1. Download [`plugins.py`](https://github.com/fabric-testbed/jupyter-examples/blob/master/fabric_examples/beta_functionality/rel1.4/plugins.py) and place it beside `v4pub.py`.
-2. In each experiment, insert `v4pub.prepare()`, `v4pub.modify()`, and `v4pub.enable()` calls (see example in `demo-v4pub.py`).
+1. In each experiment, insert `v4pub.prepare()`, `v4pub.modify()`, and `v4pub.enable()` calls (see example in `demo-v4pub.py`).
 
 You should not use this script on nodes that already have IPv4 management address.
 Doing so would cause the node to lose management connectivity.

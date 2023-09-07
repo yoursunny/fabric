@@ -9,14 +9,10 @@ from fabrictestbed_extensions.fablib.network_service import (NetworkService,
                                                              ServiceType)
 from fabrictestbed_extensions.fablib.slice import Slice
 
-from plugins import Plugins
-
 # no need to change anything below
 
 intf_name = 'uplink4'
 net_prefix = 'v4pub-net-'
-
-Plugins.load()
 
 
 def prepare(slice: Slice, node_names: T.List[str]) -> None:
@@ -37,9 +33,9 @@ def prepare(slice: Slice, node_names: T.List[str]) -> None:
 
 
 def modify_network(net: NetworkService) -> None:
-    assert net.fim_network_service.type == ServiceType.FABNetv4Ext
+    assert net.get_type() == ServiceType.FABNetv4Ext
     ips = net.get_available_ips(count=len(net.get_interfaces()))
-    net.change_public_ip(ipv4=[str(ip) for ip in ips])
+    net.make_ip_publicly_routable(ipv4=[str(ip) for ip in ips])
 
 
 def modify(slice: Slice, *, update=True, submit=True) -> None:
@@ -81,14 +77,14 @@ def build_netplan_conf(intf: Interface, intf_ip: ipaddress.IPv4Address, net: Net
 
 
 def enable_on_network(net: NetworkService, assoc: T.Dict[str, str]) -> None:
-    assert net.fim_network_service.type == ServiceType.FABNetv4Ext
-    ips = net.get_fim_network_service().labels.ipv4
+    assert net.get_type() == ServiceType.FABNetv4Ext
+    ips = net.get_public_ips()
     assert len(ips) >= len(net.get_interfaces())
     execute_threads = {}
     for i, intf in enumerate(net.get_interfaces()):
         node = intf.get_node()
         intf_ip = ips[i]
-        assoc[node.get_name()] = intf_ip
+        assoc[node.get_name()] = f'{intf_ip}'
         netplan_conf = build_netplan_conf(intf, intf_ip, net)
         execute_threads[node] = node.execute_thread(f'''
             echo {shlex.quote(netplan_conf)} | sudo tee /etc/netplan/64-v4pub.yaml

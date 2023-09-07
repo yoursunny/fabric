@@ -8,7 +8,7 @@ from fabrictestbed_extensions.fablib.fablib import \
 import v4pub
 
 # FABRIC site to allocate slice; must pick a site with IPv6 management address
-SITE = 'STAR'
+SITE = 'WASH'
 
 # no need to change anything below
 

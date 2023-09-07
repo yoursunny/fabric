@@ -17,6 +17,11 @@ server_pubkey = '0YpMUckXCLDbwlKsMQv2MRyZhOhV4Xvd9VBoaJZEoAA='
 
 intf_name = 'v4wg-intf'
 net_name = 'v4wg-net-'
+resolved_conf = '''
+[Resolve]
+DNS=2606:4700:4700::1111 8.8.8.8
+Domains=~.
+'''
 
 
 def prepare(slice: Slice):
@@ -91,7 +96,10 @@ def enable_on_network(net: NetworkService, clients: T.List[T.Tuple[str, str]], a
             intf, intf_ip, net, client_ip, client_pvtkey)
         execute_threads[node] = node.execute_thread(f'''
             echo {shlex.quote(netplan_conf)} | sudo tee /etc/netplan/64-v4wg.yaml
+            sudo mkdir -p /etc/systemd/resolved.conf.d
+            echo {shlex.quote(resolved_conf)} | sudo tee /etc/systemd/resolved.conf.d/dns.conf
             sudo netplan apply
+            sudo systemctl restart systemd-resolved
         ''')
     for thread in execute_threads.values():
         thread.result()

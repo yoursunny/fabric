@@ -95,11 +95,11 @@ def enable_on_network(net: NetworkService, clients: T.List[T.Tuple[str, str]], a
         netplan_conf = build_netplan_conf(
             intf, intf_ip, net, client_ip, client_pvtkey)
         execute_threads[node] = node.execute_thread(f'''
-            echo {shlex.quote(netplan_conf)} | sudo tee /etc/netplan/64-v4wg.yaml
             sudo mkdir -p /etc/systemd/resolved.conf.d
             echo {shlex.quote(resolved_conf)} | sudo tee /etc/systemd/resolved.conf.d/dns.conf
-            sudo netplan apply
             sudo systemctl restart systemd-resolved
+            echo {shlex.quote(netplan_conf)} | sudo tee /etc/netplan/64-v4wg.yaml
+            sudo netplan apply
         ''')
     for thread in execute_threads.values():
         thread.result()

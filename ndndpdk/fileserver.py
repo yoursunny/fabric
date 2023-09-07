@@ -11,9 +11,9 @@ import v4pub
 slice_num = int(time.time())
 
 # FABRIC site to allocate slice; must pick a site with IPv6 management address
-SITE = 'SALT'
+SITE = 'NEWY'
 # remote router on /ndn network, written as IPv4 address (not hostname) and UDP port
-ROUTER_IP, ROUTER_PORT = '128.252.153.194', 6363
+ROUTER_IP, ROUTER_PORT = '128.252.185.35', 6363
 # NDN-DPDK git repository
 NDNDPDK_GIT = ndndpdk_common.DEFAULT_GIT_REPO
 # URI for NDNts-CA profile packet, base64-encoded; the CA must accept "nop" challenge

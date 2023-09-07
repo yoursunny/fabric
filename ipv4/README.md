@@ -2,7 +2,9 @@
 
 This directory contains scripts for obtaining IPv4 Internet access without relying on the management network interface.
 It makes use of [FABNetv4Ext network service](https://learn.fabric-testbed.net/knowledge-base/network-services-in-fabric/#layer-3-services).
-Unlike [FABRIC's NAT64 solution](https://learn.fabric-testbed.net/forums/topic/fabric-nat64-solution-obviates-the-need-for-custom-dns-in-ipv6-sites/), you will be able to access IPv4 addresses, in addition to IPv4-only hostnames.
+
+Unlike [FABRIC's NAT64 solution](https://learn.fabric-testbed.net/forums/topic/fabric-nat64-solution-obviates-the-need-for-custom-dns-in-ipv6-sites/), these scripts allow you to access IPv4 addresses, in addition to IPv4-only hostnames.
+DNS servers are changed to Cloudflare and Google public DNS, which disables FABRIC's NAT64 solution, so that traffic to IPv4-only sites goes over IPv4 instead of the NAT64 gateway.
 
 ## v4wg: IPv4 Internet access via WireGuard VPN
 
@@ -26,9 +28,6 @@ Usage steps:
 
 It is safe to use this script on nodes that already have IPv4 management address.
 In this case, the node would be able to reach other VPN clients via the VPN server, but its Internet connection still goes over the management interface.
-
-This script changes the DNS servers on the VPN clients to Cloudflare and Google public DNS, which disables FABRIC's NAT64 solution.
-Traffic to IPv4-only sites goes over the VPN server, instead of the NAT64 gateway.
 
 ## v4pub: IPv4 Internet access via FABNetv4Ext on every node
 

@@ -13,6 +13,11 @@ from fabrictestbed_extensions.fablib.slice import Slice
 
 intf_name = 'uplink4'
 net_prefix = 'v4pub-net-'
+resolved_conf = '''
+[Resolve]
+DNS=2606:4700:4700::1111 8.8.8.8
+Domains=~.
+'''
 
 
 def prepare(slice: Slice, node_names: T.List[str]) -> None:
@@ -87,6 +92,9 @@ def enable_on_network(net: NetworkService, assoc: T.Dict[str, str]) -> None:
         assoc[node.get_name()] = f'{intf_ip}'
         netplan_conf = build_netplan_conf(intf, intf_ip, net)
         execute_threads[node] = node.execute_thread(f'''
+            sudo mkdir -p /etc/systemd/resolved.conf.d
+            echo {shlex.quote(resolved_conf)} | sudo tee /etc/systemd/resolved.conf.d/dns.conf
+            sudo systemctl restart systemd-resolved
             echo {shlex.quote(netplan_conf)} | sudo tee /etc/netplan/64-v4pub.yaml
             sudo netplan apply
         ''')

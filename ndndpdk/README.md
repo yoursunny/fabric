@@ -34,3 +34,9 @@ Usage steps:
 4. Run `benchmark.py`.
 
 When the script completes, it will print access instructions.
+
+## dpdkdev: NDN-DPDK Development
+
+This script provisions an environment suitable for NDN-DPDK development.
+It builds one or more virtual machines, configures CPU isolation, and installs NDN-DPDK dependencies.
+Developer can then connect to the virtual machines to modify and test NDN-DPDK.

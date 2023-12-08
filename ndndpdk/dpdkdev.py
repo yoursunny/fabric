@@ -15,6 +15,8 @@ NODE_COUNT = 2
 SITES = ['SEAT', 'LOSA']
 # CPU core isolation for NDN-DPDK systemd service on port 3030 and 3031
 CORES3030, CORES3031 = 10, 6
+# NIC model, 'NIC_Basic' or 'NIC_ConnectX_5' or 'NIC_ConnectX_6'
+NIC_MODEL = 'NIC_Basic'
 # whether to create NVMe device for fileserver development
 WANT_NVME = False
 # WireGuard client IPs and keys
@@ -35,8 +37,7 @@ intfs = []
 for i in range(NODE_COUNT):
     node = slice.add_node(name=f'n{i}', site=SITES[i % len(SITES)],
                           cores=6+CORES3030+CORES3031, ram=32, disk=100, image='default_ubuntu_22')
-    intfs.append(node.add_component(
-        model='NIC_Basic', name='nic').get_interfaces()[0])
+    intfs += node.add_component(model=NIC_MODEL, name='nic').get_interfaces()
     if WANT_NVME:
         node.add_component(model='NVME_P4510', name='disk')
     del node

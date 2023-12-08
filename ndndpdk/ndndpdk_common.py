@@ -48,7 +48,7 @@ def cpuset_cmd(node: Node, *, instances: dict[str, int]) -> str:
     Construct commands to configure CPU isolation.
 
     :param node: fablib Node instance.
-    :param instances: a dict where each key is a systemd instance name and each value is number of cores reserved for this instance.
+    :param instances: a dict where each key is a systemd instance name and each value is number of CPU cores reserved for this instance.
     """
     demand_count = sum(instances.values())
     total_count = node.get_cores()
@@ -56,21 +56,29 @@ def cpuset_cmd(node: Node, *, instances: dict[str, int]) -> str:
     allocated = 0
     cmds = []
 
-    def put_alloc(dir: str, section: str, n: int) -> None:
-        nonlocal allocated, cmds
+    def alloc_cpuset(n: int) -> str:
+        nonlocal allocated
         cpu_first = allocated
         allocated += n
         cpu_last = allocated - 1
-        content = f'[{section}]\nCPUAffinity={cpu_first}-{cpu_last}'
+        return f'{cpu_first}-{cpu_last}'
+
+    def save_unit_cpuset(unit: str, cpuset: str) -> None:
+        nonlocal cmds
+        section = unit.split('.')[-1].capitalize()
+        content = f'[{section}]\nAllowedCPUs={cpuset}'
         cmds += [
-            f'sudo mkdir -p {dir}',
-            f'echo {shlex.quote(content)} | sudo tee {dir}/cpuset.conf',
+            f'sudo mkdir -p /etc/systemd/system/{unit}.d',
+            f'echo {shlex.quote(content)} | sudo tee /etc/systemd/system/{unit}.d/cpuset.conf',
         ]
-    put_alloc('/etc/systemd/system.conf.d',
-              'Manager', total_count - demand_count)
+
+    unreserved = alloc_cpuset(total_count - demand_count)
+    save_unit_cpuset('init.scope', unreserved)
+    save_unit_cpuset('user.slice', unreserved)
+    save_unit_cpuset('service', unreserved)
     for a, n in instances.items():
-        put_alloc(
-            f'/etc/systemd/system/ndndpdk-svc@$(systemd-escape {shlex.quote(a)}).service.d', 'Service', n)
+        save_unit_cpuset(
+            f'ndndpdk-svc@$(systemd-escape {shlex.quote(a)}).service', alloc_cpuset(n))
     assert allocated == total_count
     return '\n'.join(cmds)
 

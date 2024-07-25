@@ -6,5 +6,4 @@ from fabrictestbed_extensions.fablib.fablib import \
 fablib = fablib_manager()
 
 slice_name = sys.argv[1]
-slice = fablib.get_slice(name=slice_name)
-slice.delete()
+fablib.delete_slice(slice_name)

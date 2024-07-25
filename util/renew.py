@@ -1,5 +1,3 @@
-from datetime import datetime, timedelta, timezone
-
 from fabrictestbed_extensions.fablib.fablib import \
     FablibManager as fablib_manager
 
@@ -12,15 +10,13 @@ SLICE_NAMES = [
 # no need to change anything below
 
 fablib = fablib_manager()
-end_date = (datetime.now(timezone.utc) + timedelta(days=12)
-            ).strftime('%Y-%m-%d %H:%M:%S %z')
 
 for slice_name in SLICE_NAMES:
     try:
         slice = fablib.get_slice(name=slice_name)
         end0 = slice.get_lease_end()
-        slice.renew(end_date)
-        slice.update()
+        slice.submit(lease_in_days=12, progress=False, wait=True,
+                     wait_ssh=False, post_boot_config=False)
         end1 = slice.get_lease_end()
         print(f"{slice_name} RENEW {end0} {end1}")
     except Exception as e:

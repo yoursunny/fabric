@@ -11,9 +11,9 @@ import v4pub
 slice_num = int(time.time())
 
 # FABRIC site to allocate slice; must pick a site with IPv6 management address
-SITE = 'NEWY'
+SITE = 'DALL'
 # remote router on /ndn network, written as IPv4 address (not hostname) and UDP port
-ROUTER_IP, ROUTER_PORT = '128.252.185.35', 6363
+ROUTER_IP, ROUTER_PORT = '141.225.11.173', 6363
 # NDN-DPDK git repository
 NDNDPDK_GIT = ndndpdk_common.DEFAULT_GIT_REPO
 # URI for NDNts-CA profile packet, base64-encoded; the CA must accept "nop" challenge
@@ -77,7 +77,7 @@ node.execute(f'''
     done
 
     sudo npm i -g https://ndnts-nightly.ndn.today/keychain-cli.tgz
-    export NDNTS_UPLINK=unix:///run/nfd.sock
+    export NDNTS_UPLINK=unix:///run/nfd/nfd.sock
 
     CAPREFIX=$(ndnts-keychain ndncert03-show-profile --profile ~/keychain/ca-profile.data --json | tee /dev/stderr | jq -r .prefix)
     ndnsec key-gen $CAPREFIX/$(hostname -s)-{slice_num} >/dev/null

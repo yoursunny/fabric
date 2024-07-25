@@ -26,6 +26,9 @@ Usage steps:
 3. Modify `v4wg.py` (see notes within) and copy it beside each experiment.
 4. In each experiment, insert `v4wg.prepare()` and `v4wg.enable()` calls (see example in `demo-v4wg.py`).
 
+Each node in other experiments would get a `v4wg` network interface that is the WireGuard VPN client.
+If you have deleted and re-created the WireGuard VPN server, you may need to run `sudo ip link del v4wg; sudo netplan apply` in each client node to reconnect the VPN.
+
 It is safe to use this script on nodes that already have IPv4 management address.
 In this case, the node would be able to reach other VPN clients via the VPN server, but its Internet connection still goes over the management interface.
 

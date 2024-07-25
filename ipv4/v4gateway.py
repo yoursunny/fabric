@@ -8,7 +8,7 @@ from fabrictestbed_extensions.fablib.fablib import \
 import v4pub
 
 # FABRIC site to allocate slice; must pick a site with IPv6 management address
-SITE = 'WASH'
+SITE = 'STAR'
 
 # no need to change anything below
 
@@ -19,8 +19,8 @@ slice_name = f'v4gateway@{int(time.time())}'
 print(slice_name)
 
 slice = fablib.new_slice(name=slice_name)
-node = slice.add_node(name='gateway', site=SITE, cores=2,
-                      ram=4, disk=10, image='default_ubuntu_22')
+node = slice.add_node(name='gateway', site=SITE, cores=1,
+                      ram=2, disk=10, image='default_ubuntu_24')
 [intf_lan] = node.add_component(
     model='NIC_Basic', name='lan').get_interfaces()[:1]
 slice.add_l3network(name='LAN', interfaces=[intf_lan], type='IPv4')

@@ -28,10 +28,9 @@ Node location and NIC type can be customized.
 
 Usage steps:
 
-1. Deploy a WireGuard VPN server with [`v4gateway.py`](../ipv4).
-2. Upload `benchmark.py`, `ndndpdk_common.py`, and [`v4wg.py`](../ipv4) to the same directory on JupyterLab.
-3. Modify parameters in `benchmark.py` (see notes within) as desired.
-4. Run `benchmark.py`.
+1. Upload `benchmark.py` and `ndndpdk_common.py` to the same directory on JupyterLab.
+2. Modify parameters in `benchmark.py` (see notes within) as desired.
+3. Run `benchmark.py`.
 
 When the script completes, it will print access instructions.
 

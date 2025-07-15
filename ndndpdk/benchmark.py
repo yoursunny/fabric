@@ -7,23 +7,16 @@ from fabrictestbed_extensions.fablib.fablib import \
 from fabrictestbed_extensions.fablib.interface import Interface
 
 import ndndpdk_common
-import v4wg
 
 # FABRIC site(s) for forwarder F, trafficgen A, trafficgen B; they may be same or different
 SITE_F, SITE_A, SITE_B = 'STAR', 'SALT', 'CLEM'
 # NIC model, 'NIC_Basic' or 'NIC_ConnectX_5' or 'NIC_ConnectX_6'
-NIC_MODEL = 'NIC_ConnectX_6'
+NIC_MODEL = 'NIC_Basic'
 # whether trafficgen should have NVMe device to support NDN-DPDK fileserver;
 # if False, benchmark only supports pingserver as producer
 WANT_FILESERVER = True
 # NDN-DPDK git repository
 NDNDPDK_GIT = ndndpdk_common.DEFAULT_GIT_REPO
-# 3x WireGuard client IPs and keys
-V4WG_CLIENTS = [
-    ('192.168.164.40', 'sDCCYU0r9TwugEDzTMDyfJ1eA+YwAyXf+EN3Hzj7QUo='),
-    ('192.168.164.41', 'eDRM0enBsDVN+uXpVKjOeB5IAIoZsIHoGPiwdWgT81I='),
-    ('192.168.164.42', 'UALczs0qEZ/KjfH2fMMIovFrK3/guRXL9GdRB+YVoFE='),
-]
 
 # no need to change anything below
 
@@ -33,16 +26,16 @@ print(slice_name)
 
 slice = fablib.new_slice(name=slice_name)
 nodeF = slice.add_node(name='NF', site=SITE_F, cores=24,
-                       ram=32, disk=100, image='default_ubuntu_22')
+                       ram=32, disk=100, image='default_ubuntu_24')
 intfsF = nodeF.add_component(model=NIC_MODEL, name='nic0').get_interfaces()
 if len(intfsF) < 2:
     intfsF += nodeF.add_component(model=NIC_MODEL,
                                   name='nic1').get_interfaces()
 nodeA = slice.add_node(name='NA', site=SITE_A, cores=12,
-                       ram=32, disk=100, image='default_ubuntu_22')
+                       ram=32, disk=100, image='default_ubuntu_24')
 intfsA = nodeA.add_component(model=NIC_MODEL, name='nic0').get_interfaces()
 nodeB = slice.add_node(name='NB', site=SITE_B, cores=12,
-                       ram=32, disk=100, image='default_ubuntu_22')
+                       ram=32, disk=100, image='default_ubuntu_24')
 intfsB = nodeB.add_component(model=NIC_MODEL, name='nic0').get_interfaces()
 slice.add_l2network(name='netA', interfaces=[intfsF[0], intfsA[0]],
                     type=('L2Bridge' if SITE_F == SITE_A else 'L2STS' if NIC_MODEL == 'NIC_Basic' else 'L2PTP'))
@@ -51,11 +44,13 @@ slice.add_l2network(name='netB', interfaces=[intfsF[1], intfsB[0]],
 if WANT_FILESERVER:
     nodeA.add_component(model='NVME_P4510', name='disk')
     nodeB.add_component(model='NVME_P4510', name='disk')
-v4wg.prepare(slice)
+for node in slice.get_nodes():
+    node.add_fabnet()
 slice.submit()
 del intfsF, intfsA, intfsB
 
-ctrl_addrs = v4wg.enable(slice, V4WG_CLIENTS)
+ctrl_addrs = {node.get_name(): node.get_interface(
+    network_name=f'FABNET_IPv4_{node.get_site()}').get_ip_addr() for node in slice.get_nodes()}
 nodeF = slice.get_node(name='NF')
 nodeA = slice.get_node(name='NA')
 nodeB = slice.get_node(name='NB')
@@ -65,9 +60,7 @@ intfAF = nodeA.get_interface(network_name='netA')
 intfBF = nodeB.get_interface(network_name='netB')
 
 fs_path = '/srv/fileserver'
-fs_nodes = []
-if WANT_FILESERVER:
-    fs_nodes = [nodeA, nodeB]
+fs_nodes = [nodeA, nodeB] if WANT_FILESERVER else []
 for node in fs_nodes:
     node.get_component('disk').configure_nvme(mount_point=fs_path)
 

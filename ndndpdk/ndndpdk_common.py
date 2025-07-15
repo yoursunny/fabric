@@ -43,12 +43,13 @@ def dl_build_cmd(*, repo=DEFAULT_GIT_REPO, depends_env: list[str] = [], depends_
     ])
 
 
-def cpuset_cmd(node: Node, *, instances: dict[str, int]) -> str:
+def cpuset_cmd(node: Node, *, instances: dict[str, int], pin_cpu: dict[str, str] = {}) -> str:
     """
     Construct commands to configure CPU isolation.
 
     :param node: fablib Node instance.
-    :param instances: a dict where each key is a systemd instance name and each value is number of CPU cores reserved for this instance.
+    :param instances: each key is a systemd instance name; each value is number of CPU cores reserved for this instance.
+    :param pin_cpu: each key is a systemd instance name; each value is hardware component name to identify NUMA socket to pin host CPU.
     """
     demand_count = sum(instances.values())
     total_count = node.get_cores()
@@ -77,8 +78,15 @@ def cpuset_cmd(node: Node, *, instances: dict[str, int]) -> str:
     save_unit_cpuset('user.slice', unreserved)
     save_unit_cpuset('service', unreserved)
     for a, n in instances.items():
+        unit_cpuset = alloc_cpuset(n)
         save_unit_cpuset(
-            f'ndndpdk-svc@$(systemd-escape {shlex.quote(a)}).service', alloc_cpuset(n))
+            f'ndndpdk-svc@$(systemd-escape {shlex.quote(a)}).service', unit_cpuset)
+        pin_component = pin_cpu.get(a, None)
+        if pin_component is not None:
+            try:
+                node.pin_cpu(pin_component, unit_cpuset)
+            except:
+                pass
     assert allocated == total_count
     return '\n'.join(cmds)
 

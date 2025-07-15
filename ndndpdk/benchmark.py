@@ -81,12 +81,13 @@ for thread in execute_threads.values():
 slice.wait_ssh(progress=True)
 slice.post_boot_config()
 
-# build and install NDN-DPDK, set CPU isolation
+# build and install NDN-DPDK, set CPU isolation, pin host CPU if using SmartNIC
 execute_threads = {}
 for node in slice.get_nodes():
+    instance = f'{ctrl_addrs[node.get_name()]}:3030'
     execute_threads[node] = node.execute_thread(f'''
         {ndndpdk_common.dl_build_cmd(repo=NDNDPDK_GIT)}
-        {ndndpdk_common.cpuset_cmd(node, instances={f'{ctrl_addrs[node.get_name()]}:3030': node.get_cores()-4})}
+        {ndndpdk_common.cpuset_cmd(node, instances={instance: node.get_cores()-4}, pin_cpu={instance: None if NIC_MODEL == 'NIC_Basic' else 'nic0'})}
         sudo systemctl reboot
     ''')
 for thread in execute_threads.values():
@@ -114,6 +115,7 @@ for node in slice.get_nodes():
         sudo ndndpdk-ctrl --gqlserver=http://{ctrl_addrs[node.get_name()]}:3030 systemd start
     ''')
 
+# gather information and prepare .env
 benchmark_env = {}
 for node in slice.get_nodes():
     id = node.get_name()[1]
@@ -171,9 +173,9 @@ nodeF.execute(f'''
 
     cd ~/ndn-dpdk/sample/status
     corepack pnpm -s install
-    systemd-run --user --collect --unit=ndndpdk-status-F --same-dir -- corepack pnpm start --listen 127.0.0.1:8006 --gqlserver http://{ctrl_addrs[nodeF.get_name()]}:3030
-    systemd-run --user --collect --unit=ndndpdk-status-A --same-dir -- corepack pnpm start --listen 127.0.0.1:8001 --gqlserver http://{ctrl_addrs[nodeA.get_name()]}:3030
-    systemd-run --user --collect --unit=ndndpdk-status-B --same-dir -- corepack pnpm start --listen 127.0.0.1:8002 --gqlserver http://{ctrl_addrs[nodeB.get_name()]}:3030
+    systemd-run --user --collect --unit=ndndpdk-status-F --same-dir -- corepack pnpm start --listen 127.0.0.1:8006 --gqlserver http://{ctrl_addrs['NF']}:3030
+    systemd-run --user --collect --unit=ndndpdk-status-A --same-dir -- corepack pnpm start --listen 127.0.0.1:8001 --gqlserver http://{ctrl_addrs['NA']}:3030
+    systemd-run --user --collect --unit=ndndpdk-status-B --same-dir -- corepack pnpm start --listen 127.0.0.1:8002 --gqlserver http://{ctrl_addrs['NB']}:3030
 ''')
 
 print(f'''

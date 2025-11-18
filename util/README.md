@@ -2,21 +2,21 @@
 
 This directory contains miscellaneous utility scripts for use on FABRIC JupyterLab.
 
-## renew: Renew Slices
+# renew: Renew Slices
 
 This script renews each experiment for 12 days.
 
 Usage steps:
 
 1. Upload the script to JupyterLab.
-2. Enter slice names that you want to keep renewed in the script (see notes within).
+2. Enter slice names that you want to keep renewed in the script(see notes within).
 3. Run `python renew.py`.
 
 I usually keep this script updated with slice names that I care about.
 At end of each day, I execute this script to renew my slices.
 This ensures my slices are still there on the next workday.
 
-## delete: Delete a Slice
+# delete: Delete a Slice
 
 This script deletes a slice specified on the command line.
 
@@ -28,23 +28,31 @@ Usage steps:
 Most experiment scripts in this repository deploy new slices but do not automatically delete them, as the slice may be providing a service used by other slices or remote nodes.
 When a slice is no longer needed, this script may be used to delete the slice and release FABRIC resources.
 
-## cpupin: Pin VM to Physical CPU Core
+# cpupin_common: Pin VM to Physical CPU Core
 
-This script sets CPU affinity of VCPUs so that both logical cores of a physical core are assigned to the VM.
-
-Usage steps:
-
-1. Upload the script to JupyterLab.
-2. Edit variables in the script (see notes within).
-3. Run `python cpupin.py`.
+This module sets CPU affinity of VCPUs so that both logical cores of a physical core are assigned to the VM.
 
 FABLib `Node.pin_cpu()` API can set CPU affinity to match a hardware NIC, but this doesn't work on a compute-only node.
 Moreover, FABRIC now has hyper-threading enabled so that someone else can place workloads on other logical core, which affects the precision of compute-intensive benchmarks.
 
-This script allows assigning VCPUs to physical cores on specific NUMA sockets.
+This module allows assigning VCPUs to physical cores on specific NUMA sockets.
 For each physical core, it assigns both logical cores to two VCPUs of the VM.
 Subsequently, one of these VCPUs is placed into offline mode, so that no other VM can pin to the logical core.
 Unfortunately, currently [the hypervisor can still place workloads onto pinned logical cores](https://learn.fabric-testbed.net/forums/topic/pin_cpu-poaoperationcpupin/#post-9126), just that they cannot be pinned elsewhere.
+
+Additionally, this module configures CPU isolation in systemd so that most workloads are placed on VCPUs that appear in neither online nor offline list.
+Docker containers, configured through `docker-.scope` unit, are placed on VCPUs in the online list by default.
+
+Programmatic usage:
+
+```py
+slice = fablib.get_slice("demo")
+node = slice.get_node("vm")
+# Assign a physical core from NUMA socket 1 to VCPU#2.
+# VCPU#3 gets the other hyperthread and is placed into offline mode.
+# VCPU#0,1 are unreserved; VCPU#2 are isolated for Docker containers.
+cpupin_common.pin_vcpu_to_socket(node, {2: 1}, [3])
+```
 
 ## mtu: Test MTU and RTT between Sites
 
